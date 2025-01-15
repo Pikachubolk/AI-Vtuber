@@ -1,26 +1,52 @@
 {
     "keys": [
         {
-            "EL_key":  "",
-            "OAI_key": ""
+            "EL_key": "your_eleven_labs_key",
+            "FISH_key": "your_fish_key",
+            "OPENAI_key": "your_openai_key",
+            "GEMINI_key": "your_gemini_key",
+            "youtube_api_key": "your_youtube_key"
         }
     ],
     "EL_data": [
         {
-          "voice": "MF3mGyEYCl7XYWbV9V6O"
+            "voice": "your_elevenlabs_voice_id"
         }
-
     ],
-    "OAI_data": [
+    "FISH_data": [
         {
-          "model": "text-davinci-003",
-          "prompt": "This is how a toxic entitled evil female streamer responded in a conversation. She would respond in a toxic and rude manner. She would talk about the message and would elaborate on it as well as share some of her experiences if possible. She would also go on a tangent if possible.",
-          "temperature": 0.9,
-            "max_tokens": 128,
-            "top_p": 1,
-            "frequency_penalty": 1,
-            "presence_penalty": 1
+            "voice_id": "your_fish_voice_id",
+            "settings": {
+                "format": "mp3",
+                "mp3_bitrate": 128,
+                "latency": "normal"
+            }
         }
-
-    ]
+    ],
+    "model_settings": {
+        "OPENAI": {
+            "model": "gpt-4-turbo-preview",
+            "temperature": 0.7,
+            "max_tokens": 150,
+            "top_p": 1,
+            "frequency_penalty": 0,
+            "presence_penalty": 0
+        },
+        "GEMINI": {
+            "model": "gemini-1.5-pro",
+            "temperature": 0.75,
+            "top_p": 0.95,
+            "top_k": 64,
+            "max_output_tokens": 128
+        }
+    },
+    "app_settings": {
+        "theme": "dark",
+        "auto_save": true,
+        "auto_fetch_streams": true,
+        "check_updates": true,
+        "console_max_lines": 1000,
+        "default_ai": "GEMINI",
+        "default_tts": "ElevenLabs"
+    }
 }

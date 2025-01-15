@@ -1,7 +1,10 @@
 pytchat
 openai
+google-generativeai
 pydub
 pyttsx3
 simpleaudio
 pyaudio
-ffmpeg
+ffmpeg-python
+requests
+google-cloud-texttospeech

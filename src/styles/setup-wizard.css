@@ -1,0 +1,265 @@
+.setup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    z-index: 999;
+}
+
+.setup-wizard {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 30px;
+    width: 600px;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+}
+
+.setup-wizard::-webkit-scrollbar {
+    width: 8px;
+}
+
+.setup-wizard::-webkit-scrollbar-track {
+    background: var(--bg-dark);
+    border-radius: 4px;
+}
+
+.setup-wizard::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border-radius: 4px;
+}
+
+.setup-wizard h2 {
+    margin: 0 0 20px 0;
+    color: var(--text);
+    font-size: 24px;
+    text-align: center;
+}
+
+.setup-step {
+    margin-bottom: 25px;
+}
+
+.setup-step h3 {
+    color: var(--text);
+    font-size: 18px;
+    margin-bottom: 15px;
+}
+
+.setup-content {
+    padding: 15px;
+    background: var(--bg-dark);
+    border-radius: 6px;
+}
+
+.setup-content p {
+    color: var(--text-dim);
+    margin-bottom: 15px;
+}
+
+.wizard-btn {
+    background: var(--accent);
+    color: var(--text);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin: 5px;
+}
+
+.wizard-btn:hover {
+    background: var(--accent-hover);
+}
+
+.wizard-btn.primary {
+    background: var(--success);
+}
+
+.wizard-btn.primary:hover {
+    background: var(--success-hover);
+}
+
+#python-cmd {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 8px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    margin: 15px 0;
+    background: var(--bg-dark);
+    border-radius: 6px;
+}
+
+.status-icon {
+    font-size: 18px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.status-icon.success {
+    color: var(--success);
+}
+
+.status-icon.error {
+    color: var(--error);
+}
+
+.setup-summary {
+    margin-bottom: 15px;
+}
+
+.setup-select {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+.secondary-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
+.secondary-btn:hover {
+    background: var(--bg-dark);
+}
+
+.help-text {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+}
+
+.version-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin: 10px 0;
+    padding-right: 8px;
+}
+
+.version-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.version-list::-webkit-scrollbar-track {
+    background: var(--bg-dark);
+    border-radius: 3px;
+}
+
+.version-list::-webkit-scrollbar-thumb {
+    background: var(--accent);
+    border-radius: 3px;
+}
+
+.version-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    background: var(--bg);
+    border-radius: 4px;
+    margin-bottom: 5px;
+}
+
+.version-text {
+    color: var(--text);
+}
+
+.use-version-btn {
+    background: var(--accent);
+    color: var(--text);
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.quick-commands {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+.quick-cmd-btn {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.quick-cmd-btn:hover {
+    background: var(--bg-dark);
+}
+
+.setup-input {
+    flex: 1;
+    min-width: 0;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.deps-progress {
+    margin: 10px 0;
+}
+
+.progress-bar {
+    height: 4px;
+    background: var(--bg);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 5px;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    flex-wrap: wrap;
+} 

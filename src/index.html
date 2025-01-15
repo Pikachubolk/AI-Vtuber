@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>AI VTuber Control Panel</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/setup-wizard.css">
+    <link rel="stylesheet" href="styles/notifications.css">
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>AI VTuber</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-button active" data-panel="live-control">
+                    <span class="icon">🎮</span>
+                    Live Control
+                </button>
+                <button class="nav-button" data-panel="messages">
+                    <span class="icon">💬</span>
+                    Messages
+                </button>
+                <button class="nav-button" data-panel="prompt">
+                    <span class="icon">📝</span>
+                    Prompt
+                </button>
+                <button class="nav-button" data-panel="settings">
+                    <span class="icon">⚙️</span>
+                    Settings
+                </button>
+            </nav>
+        </div>
+        
+        <div class="content">
+            <div class="titlebar">
+                <div class="window-controls">
+                    <button id="minimize-btn">─</button>
+                    <button id="maximize-btn">□</button>
+                    <button id="close-btn">×</button>
+                </div>
+            </div>
+            
+            <div class="panels">
+                <div id="live-control" class="panel active"></div>
+                <div id="messages" class="panel"></div>
+                <div id="prompt" class="panel"></div>
+                <div id="settings" class="panel"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module" src="renderer.js"></script>
+</body>
+</html> 

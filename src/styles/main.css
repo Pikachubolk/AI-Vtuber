@@ -1,0 +1,468 @@
+:root {
+    --bg-dark: #1a1a1a;
+    --bg: #1e1e1e;
+    --sidebar: #252526;
+    --content: #2d2d2d;
+    --text: #ffffff;
+    --text-dim: #cccccc;
+    --accent: #007acc;
+    --accent-hover: #1f8ad2;
+    --border: #333333;
+    --error: #ff3333;
+    --success: #33cc33;
+    --warning: #ffcc00;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: var(--bg-dark);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app-container {
+    display: flex;
+    height: 100vh;
+}
+
+/* Sidebar styles */
+.sidebar {
+    width: 220px;
+    background: var(--sidebar);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+}
+
+.sidebar-header {
+    padding: 20px;
+    text-align: center;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+}
+
+.nav-button {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    padding: 12px 20px;
+    text-align: left;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nav-button:hover {
+    background: var(--accent-hover);
+}
+
+.nav-button.active {
+    background: var(--accent);
+}
+
+/* Content area styles */
+.content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.titlebar {
+    height: 32px;
+    background: var(--bg);
+    display: flex;
+    justify-content: flex-end;
+    -webkit-app-region: drag;
+}
+
+.window-controls {
+    -webkit-app-region: no-drag;
+}
+
+.window-controls button {
+    width: 46px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.window-controls button:hover {
+    background: var(--accent);
+}
+
+.panels {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.panel {
+    display: none;
+}
+
+.panel.active {
+    display: block;
+}
+
+/* Form controls */
+input, select, textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px;
+    border-radius: 4px;
+    width: 100%;
+}
+
+button {
+    background: var(--accent);
+    color: var(--text);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+button:hover {
+    background: var(--accent-hover);
+}
+
+.panel-content {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-row {
+    display: flex;
+    gap: 20px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text-dim);
+}
+
+.console-output {
+    margin-top: 20px;
+}
+
+.console {
+    background: var(--bg-dark);
+    border-radius: 4px;
+    padding: 10px;
+    height: 300px;
+    overflow-y: auto;
+    font-family: 'Cascadia Code', monospace;
+    font-size: 12px;
+}
+
+.console-line {
+    padding: 2px 0;
+    white-space: pre-wrap;
+}
+
+.console-line.error {
+    color: var(--error);
+}
+
+.prompt-textarea {
+    width: 100%;
+    height: 400px;
+    font-family: 'Cascadia Code', monospace;
+    font-size: 14px;
+    resize: vertical;
+}
+
+.settings-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.tab-button {
+    background: var(--bg);
+    border: none;
+    padding: 8px 16px;
+    color: var(--text);
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.tab-button.active {
+    background: var(--accent);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Add these styles */
+.input-group {
+    display: flex;
+    gap: 5px;
+}
+
+.input-group input {
+    flex: 1;
+}
+
+.input-group button {
+    padding: 8px;
+    min-width: 40px;
+}
+
+.api-key {
+    font-family: monospace;
+}
+
+/* Add these styles */
+.sub-group {
+    margin-top: 10px;
+    margin-left: 15px;
+}
+
+.sub-group label {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.sub-group select {
+    width: 100%;
+    margin-top: 4px;
+}
+
+/* Style select elements */
+select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px;
+    border-radius: 4px;
+    width: 100%;
+    cursor: pointer;
+}
+
+select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+/* Tab styling */
+.settings-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+}
+
+.tab-button {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+}
+
+.tab-button:hover {
+    background: var(--accent-hover);
+    color: var(--text);
+}
+
+.tab-button.active {
+    background: var(--accent);
+    color: var(--text);
+}
+
+/* Status Bar */
+.status-bar {
+    height: 24px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    padding: 0 10px;
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.status-left, .status-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.status-item.error {
+    color: var(--error);
+}
+
+/* Enhanced Console */
+.console-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+}
+
+.console-toolbar button {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.console-filters {
+    display: flex;
+    gap: 10px;
+}
+
+.console-filter {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Settings Enhancements */
+.settings-card {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.settings-card h3 {
+    margin: 0 0 10px 0;
+    color: var(--text);
+    font-size: 14px;
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+/* Tooltips */
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-dark);
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+}
+
+/* Console enhancements */
+.console-timestamp {
+    color: var(--text-dim);
+    font-size: 0.9em;
+    margin-right: 8px;
+}
+
+.console-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+}
+
+.console-filters {
+    display: flex;
+    gap: 15px;
+}
+
+.console-filter {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--text-dim);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.console-filter input {
+    cursor: pointer;
+}
+
+.console-line {
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'Cascadia Code', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.console-line:hover {
+    background: var(--bg-dark);
+}
+
+.console-line.error {
+    color: var(--error);
+    background: rgba(255, 51, 51, 0.1);
+}
+
+.console {
+    display: flex;
+    flex-direction: column;
+    height: 300px;
+}
+
+.console-output {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg);
+    border-radius: 4px;
+}
+
+/* Add smooth scrolling */
+.console-output {
+    scroll-behavior: smooth;
+} 

@@ -1,66 +1,152 @@
-# AI-Vtuber
-This code is designed to read chat messages from YouTube and then utilize OpenAI's GPT-3 language model to generate responses. The output from GPT-3 is then read out loud using a TTS (Text-to-Speech) engine provided by ElevenLabs.
+# AI VTuber Control Panel
 
+A modern desktop application for managing AI VTuber interactions, built with Electron and Python.
 
+## Features
 
-# Setup
-Install dependencies
+- 🎮 Live Control Panel for managing YouTube livestream interactions
+- 🤖 Multiple AI Provider support (OpenAI GPT-4 and Google Gemini)
+- 🗣️ Multiple TTS options (ElevenLabs, Fish, Google Cloud, pyttsx3)
+- 💬 Real-time chat monitoring and response generation
+- ⚙️ Configurable system prompts and settings
+- 🎨 Modern, dark-themed UI
+
+## Prerequisites
+
+- Python 3.11 or higher
+- Node.js and npm
+- Required API keys:
+  - OpenAI API key (for GPT-4)
+  - Google Gemini API key
+  - ElevenLabs API key (for ElevenLabs TTS)
+  - Fish API key (for Fish TTS)
+  - YouTube API key (for livestream features)
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/ai-vtuber.git
+cd ai-vtuber
 ```
-git clone https://github.com/Koischizo/AI-Vtuber/
-cd AI-Vtuber
+
+2. Install Node.js dependencies:
+```bash
+npm install
+```
+
+3. Install Python dependencies:
+```bash
 pip install -r requirements.txt
 ```
-It also requires [`ffmpeg`](https://ffmpeg.org/) to be installed
 
-# Usage
-
-Edit the variables `EL_key` and `OAI_key` in `config.json`
-
-`EL_key` is the API key for [ElevenLabs](https://beta.elevenlabs.io/). Found in Profile Settings
-
-`OAI_key` is the API key for OpenAI. Found [here](https://platform.openai.com/account/api-keys)
-
-Then run `run.py`
-
-### Default TTS
+4. Configure your API keys in `config.json`:
+```json
+{
+    "keys": [{
+        "EL_key": "your_eleven_labs_key",
+        "FISH_key": "your_fish_key",
+        "OPENAI_key": "your_openai_key",
+        "GEMINI_key": "your_gemini_key",
+        "youtube_api_key": "your_youtube_key"
+    }]
+}
 ```
-python run.py -id STREAMID 
+
+## Usage
+
+### Development Mode
+
+Run the application in development mode with hot reloading:
+```bash
+npm run dev
 ```
-### Elevenlabs TTS
+
+### Production Mode
+
+Run the application in production mode:
+```bash
+npm start
 ```
-python run.py -id STREAMID -tts EL 
+
+### Building
+
+Build the application for distribution:
+```bash
+npm run build
 ```
-then you're set
-## Notes
-Replace `STREAMID` with the stream's ID that you can find on the Youtube Stream link
 
-You can change the voice by changing `voice` in `config.json`. You can find the ID's [here](https://api.elevenlabs.io/docs) in `Get Voices`
+## Features
 
+### Live Control
+- Monitor and respond to YouTube livestream chat
+- Switch between different AI and TTS providers
+- Real-time console output
 
+### Settings
+- Configure API keys
+- Adjust voice settings for different TTS providers
+- Fine-tune AI model parameters
+- Customize system behavior
 
-# Live Demo
-[Livestream 1](https://www.youtube.com/watch?v=rSrkpsWZjyg)
+### System Prompt
+- Edit and save custom system prompts
+- Define AI personality and behavior
+- Set response guidelines
 
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=rSrkpsWZjyg
-" target="_blank"><img src="http://img.youtube.com/vi/rSrkpsWZjyg/0.jpg" 
-alt="" width="240" height="180" border="10" /></a>
+## Configuration
 
-[Livestream 2](https://www.youtube.com/watch?v=GB4eJUxxNY4)
+### AI Providers
+- **OpenAI GPT-4**
+  - Advanced language model for natural conversations
+  - Configurable temperature and token limits
+  
+- **Google Gemini**
+  - Alternative AI model with competitive performance
+  - Adjustable parameters for response generation
 
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=GB4eJUxxNY4
-" target="_blank"><img src="http://img.youtube.com/vi/GB4eJUxxNY4/0.jpg" 
-alt="" width="240" height="180" border="10" /></a>
+### TTS Options
+- **ElevenLabs**
+  - High-quality, natural-sounding voices
+  - Custom voice ID support
+  
+- **Fish**
+  - Alternative TTS provider
+  - Configurable format and bitrate settings
+  
+- **Google Cloud TTS**
+  - Professional-grade text-to-speech
+  - Multiple voice options
+  
+- **pyttsx3**
+  - Offline TTS option
+  - Low-latency responses
 
-# Other
-I used [This VTS plugin](https://lualucky.itch.io/vts-desktop-audio-plugin) and [VB Audio cable](https://vb-audio.com/Cable/) to make her mouth move and be able to play music at the same time
+## Development
 
-Please note that this project was created solely for fun and as part of a YouTube video, so the quality and reliability of the code may be questionable. Also, after the completion of the project checklist, there won't be much activity in updating or improving this repository. Nonetheless, we hope that this project can serve as a source of inspiration for anyone interested in building their own AI Vtuber.
+The application uses:
+- Electron for the desktop interface
+- Python for backend processing
+- Modern ES6+ JavaScript
+- Custom theme system for consistent styling
 
-- [x] Clean up
-- [ ] GUI
-- [ ] Executables (exe, bat or sh)
-- [ ] Extra features (maybe) (Prompt injection protection, questions only mode, virtual audio)
+## Contributing
 
-# License
-This program is under the [MIT license](/LICENSE) 
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgments
+
+- OpenAI for GPT-4 API
+- Google for Gemini API
+- ElevenLabs for TTS capabilities
+- YouTube API for livestream integration
+
 
