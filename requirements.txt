@@ -8,3 +8,5 @@ pyaudio
 ffmpeg-python
 requests
 google-cloud-texttospeech
+twitchio==2.6.0
+fish-audio-sdk

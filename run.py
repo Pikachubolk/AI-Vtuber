@@ -13,22 +13,33 @@ import google.generativeai as genai
 from google.cloud import texttospeech
 import openai
 from openai import OpenAI
+import twitchio
+from twitchio.ext import commands
+from datetime import datetime
+import asyncio
+import websockets
+import ormsgpack
+import subprocess
+import shutil
+from fish_audio_sdk import AsyncWebSocketSession, TTSRequest
 
 # Set stdout to use UTF-8 encoding
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-# Initialize parser at module level
-parser = argparse.ArgumentParser()
-parser.add_argument('--video_id', type=str, required=True, help='YouTube video ID')
-parser.add_argument('--tts_type', default='pyttsx3', choices=['pyttsx3', 'EL', 'Fish', 'Google'], help='Type of TTS to use')
-parser.add_argument('--ai_provider', type=str, default='openai', choices=['openai', 'gemini'], help='AI provider to use')
-
-# Parse arguments at module level
-args = parser.parse_args()
-
-# Initialize the chat history file and system prompt file
-history_file = "history.json"
-system_prompt_file = "instructions/prompt.txt"
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--platform', type=str, choices=['youtube', 'twitch'], required=True,
+                      help='Platform to use (youtube or twitch)')
+    parser.add_argument('--stream_id', type=str, required=True,
+                      help='YouTube video ID or Twitch channel name')
+    parser.add_argument('--tts_type', default='pyttsx3', 
+                      choices=['pyttsx3', 'EL', 'Fish', 'Google'],
+                      help='Type of TTS to use')
+    parser.add_argument('--ai_provider', type=str, default='openai',
+                      choices=['openai', 'gemini'],
+                      help='AI provider to use')
+    
+    return parser.parse_args()
 
 def initTTS():
     global engine
@@ -38,8 +49,8 @@ def initTTS():
     voice = engine.getProperty('voices')
     engine.setProperty('voice', voice[1].id)
 
-def initVar():
-    global data, OPENAI_key, GEMINI_key, EL_key, FISH_key, youtube_api_key
+def initVar(ai_provider):
+    global data, OPENAI_key, GEMINI_key, EL_key, FISH_key, youtube_api_key, system_prompt, chat_history, model, tts_type
     
     # Load config
     with open('config.json', 'r', encoding='utf-8') as f:
@@ -52,68 +63,109 @@ def initVar():
     FISH_key = data["keys"][0]["FISH_key"]
     youtube_api_key = data["keys"][0]["youtube_api_key"]
     
-    # Initialize AI models based on selected provider
-    if args.ai_provider.lower() == "openai":
-        class OPENAI:
-            model = data["model_settings"]["OPENAI"]["model"]
-            temperature = data["model_settings"]["OPENAI"]["temperature"]
-            max_tokens = data["model_settings"]["OPENAI"]["max_tokens"]
-            top_p = data["model_settings"]["OPENAI"]["top_p"]
-            frequency_penalty = data["model_settings"]["OPENAI"]["frequency_penalty"]
-            presence_penalty = data["model_settings"]["OPENAI"]["presence_penalty"]
-        return OPENAI
-    else:  # Gemini
-        class GEMINI:
-            model = data["model_settings"]["GEMINI"]["model"]
-            temperature = data["model_settings"]["GEMINI"]["temperature"]
-            top_p = data["model_settings"]["GEMINI"]["top_p"]
-            top_k = data["model_settings"]["GEMINI"]["top_k"]
-            max_output_tokens = data["model_settings"]["GEMINI"]["max_output_tokens"]
-        return GEMINI
-
-def main():
-    # Initialize variables and get AI model class
-    AI_Model = initVar()
+    # Initialize chat history
+    chat_history = []
     
-    # Load system prompt
+    # Load system prompt from prompt.txt
     try:
-        with open(system_prompt_file, "r", encoding='utf-8') as file:
-            system_prompt = file.read().strip()
-    except Exception as e:
-        print(f"Unable to load system prompt: {e}")
-        system_prompt = ""
-    
-    # Initialize TTS based on selection
-    if args.tts_type == "pyttsx3":
-        initTTS()
-    elif args.tts_type == "Google":
-        google_client = texttospeech.TextToSpeechClient()
-    
-    # Initialize AI provider
-    if args.ai_provider.lower() == "openai":
+        with open('instructions/prompt.txt', 'r', encoding='utf-8') as f:
+            system_prompt = f.read().strip()
+    except FileNotFoundError:
+        print("Warning: prompt.txt not found, using default prompt")
+        system_prompt = "You are a friendly VTuber AI assistant. Keep responses concise and engaging."
+
+    # Initialize AI model based on selected provider
+    if ai_provider.lower() == "openai":
         client = OpenAI(api_key=OPENAI_key)
-    else:
+        model = client
+    else:  # Gemini
         genai.configure(api_key=GEMINI_key)
         model = genai.GenerativeModel(
-            model_name=AI_Model.model,
+            model_name=data["model_settings"]["GEMINI"]["model"],
             generation_config={
-                "temperature": AI_Model.temperature,
-                "top_p": AI_Model.top_p,
-                "top_k": AI_Model.top_k if hasattr(AI_Model, 'top_k') else None,
-                "max_output_tokens": AI_Model.max_output_tokens if hasattr(AI_Model, 'max_output_tokens') else None
+                "temperature": data["model_settings"]["GEMINI"]["temperature"],
+                "top_p": data["model_settings"]["GEMINI"]["top_p"],
+                "top_k": data["model_settings"]["GEMINI"]["top_k"],
+                "max_output_tokens": data["model_settings"]["GEMINI"]["max_output_tokens"]
             }
         )
     
-    # Start chat loop
+    print(f"Initialized {ai_provider} model")
+    return model
+
+def main():
+    # Parse arguments first
+    args = parse_args()
+    
+    # Initialize variables and load config with the AI provider from args
+    initVar(args.ai_provider)
+    
+    # Set global TTS type
+    global tts_type
+    tts_type = args.tts_type
+    
+    # Initialize TTS based on selected provider
+    if tts_type == 'pyttsx3':
+        initTTS()
+    
+    print(f"\nStarting chat monitoring for {args.platform}...")
+    print(f"Stream ID: {args.stream_id}")
+    print(f"TTS: {tts_type}")
+    print(f"AI: {args.ai_provider}\n")
+    
     try:
-        while True:
-            read_chat()
-            print("\n\nReset!\n\n")
-            time.sleep(2)
+        if args.platform == 'youtube':
+            read_youtube_chat(args.stream_id)
+        else:
+            read_twitch_chat(args.stream_id)
     except KeyboardInterrupt:
-        print("\nProcess interrupted and stopped.")
+        print("\nStopping chat monitoring...")
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"\nError: {str(e)}")
+        raise
+
+def read_youtube_chat(video_id):
+    chat = pytchat.create(video_id=video_id)
+    while chat.is_alive():
+        # Existing YouTube chat handling...
+        pass
+
+def read_twitch_chat(channel):
+    try:
+        # Get credentials from config.json first
+        with open('config.json', 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        
+        # Try multiple possible electron-store locations
+        possible_paths = [
+            os.path.join(os.path.expanduser('~'), '.config', 'ai-vtuber', 'config.json'),
+            os.path.join(os.path.expanduser('~'), 'AppData', 'Roaming', 'ai-vtuber', 'config.json'),
+            'electron-store.json'  # Local fallback
+        ]
+        
+        token = None
+        # Try to find the electron-store config file
+        for path in possible_paths:
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    store_data = json.load(f)
+                    twitch_creds = store_data.get('twitch_credentials', {})
+                    token = twitch_creds.get('access_token')
+                    if token:
+                        print(f"Found Twitch credentials in: {path}")
+                        break
+            except FileNotFoundError:
+                continue
+        
+        if not token:
+            raise ValueError("Twitch access token not found. Please connect your Twitch account.")
+        
+        print(f"Connecting to Twitch channel: {channel}")
+        bot = TwitchBot(token=token, channel=channel)
+        bot.run()
+    except Exception as e:
+        print(f"Failed to connect to Twitch: {str(e)}")
+        raise
 
 def save_history():
     try:
@@ -123,16 +175,30 @@ def save_history():
         print(f"Error saving chat history: {e}")
 
 def Controller_TTS(message):
-    if tts_type == "EL":
-        EL_TTS(message)
-    elif tts_type == "pyttsx3":
-        pyttsx3_TTS(message)
-    elif tts_type == "Google":
-        google_TTS(message)
+    global tts_type
+    
+    try:
+        if tts_type == "EL":
+            EL_TTS(message)
+        elif tts_type == "pyttsx3":
+            pyttsx3_TTS(message)
+        elif tts_type == "Google":
+            google_TTS(message)
+        elif tts_type == "Fish":
+            fish_TTS(message)
+        else:
+            print(f"Unknown TTS type: {tts_type}")
+    except Exception as e:
+        print(f"TTS Error: {str(e)}")
 
 def pyttsx3_TTS(message):
-    engine.say(message)
-    engine.runAndWait()
+    """TTS using pyttsx3"""
+    global engine
+    try:
+        engine.say(message)
+        engine.runAndWait()
+    except Exception as e:
+        print(f"pyttsx3 TTS Error: {str(e)}")
 
 def EL_TTS(message):
     url = f'https://api.elevenlabs.io/v1/text-to-speech/{EL.voice}'
@@ -225,28 +291,59 @@ def read_chat():
             time.sleep(1)
 
 def llm(message):
-    # Build the history without the "system" role
-    chat_history_for_api = []
-    if system_prompt:
-        chat_history_for_api.append({"role": "model", "parts": [system_prompt]})
-
-    chat_history_for_api.extend([
-        {"role": "user", "parts": [item["message"]]} if item["author"] != "model" else {"role": "model", "parts": [item["response"]]}
-        for item in chat_history
-    ])
-
-    chat_history_for_api.append({"role": "user", "parts": [message]})
-
-    # Start the chat session
-    chat_session = model.start_chat(
-        history=chat_history_for_api
-    )
-
-    # Send the message and get the response
-    response = chat_session.send_message(message)
+    global system_prompt, chat_history, model
     
-    # Extract text from the response (ensure single response)
-    return response.text
+    try:
+        # Build the history without the "system" role
+        chat_history_for_api = []
+        if system_prompt:
+            chat_history_for_api.append({"role": "model", "parts": [system_prompt]})
+
+        chat_history_for_api.extend([
+            {"role": "user", "parts": [item["message"]]} if item["author"] != "model" else {"role": "model", "parts": [item["response"]]}
+            for item in chat_history
+        ])
+
+        chat_history_for_api.append({"role": "user", "parts": [message]})
+
+        # Start the chat session
+        chat_session = model.start_chat(
+            history=chat_history_for_api
+        )
+
+        # Send the message and get the response
+        response = chat_session.send_message(message)
+        
+        # Add to chat history
+        chat_history.append({
+            "author": "user",
+            "message": message,
+            "timestamp": datetime.now().isoformat()
+        })
+        chat_history.append({
+            "author": "model",
+            "message": response.text,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        # Keep chat history manageable
+        if len(chat_history) > 100:
+            chat_history = chat_history[-100:]
+        
+        return response.text
+    except Exception as e:
+        print(f"Error in LLM processing: {str(e)}")
+        return "I apologize, but I encountered an error processing your message."
+
+def reload_system_prompt():
+    global system_prompt
+    try:
+        with open('instructions/prompt.txt', 'r', encoding='utf-8') as f:
+            system_prompt = f.read().strip()
+        print("System prompt reloaded")
+    except FileNotFoundError:
+        print("Warning: prompt.txt not found")
+        system_prompt = "You are a friendly VTuber AI assistant. Keep responses concise and engaging."
 
 class AIProvider:
     def __init__(self, config):
@@ -339,6 +436,125 @@ class FishTTSProvider(TTSProvider):
             play(audio_content)
         else:
             print(f"Fish TTS error: {response.status_code} - {response.text}")
+
+class TwitchBot(commands.Bot):
+    def __init__(self, token, channel):
+        super().__init__(token=token, prefix='!', initial_channels=[channel])
+        self.channel = channel
+        self.tts_lock = asyncio.Lock()
+        self.message_history = []
+
+    async def event_ready(self):
+        print(f'Connected to Twitch | {self.nick}')
+        print(f'Joined channel: {self.channel}')
+
+    async def event_message(self, message):
+        if message.echo:
+            return
+
+        if message.author.is_broadcaster and message.content.lower() == '!reload_prompt':
+            reload_system_prompt()
+            return
+
+        print(f"{message.timestamp} [{message.author.name}] {message.content}")
+        
+        # Add message to history
+        self.message_history.append({
+            "timestamp": message.timestamp,
+            "author": message.author.name,
+            "message": message.content
+        })
+        
+        # Process message with AI
+        response = llm(message.content)
+        
+        # Add response to history
+        self.message_history.append({
+            "timestamp": datetime.now(),
+            "author": "bot",
+            "message": response
+        })
+        
+        # Keep history manageable
+        if len(self.message_history) > 100:
+            self.message_history = self.message_history[-100:]
+        
+        # Handle TTS
+        await self.handle_tts(response)
+
+    async def handle_tts(self, message):
+        async with self.tts_lock:
+            try:
+                if tts_type == "Fish":
+                    await fish_tts_stream(message)
+                elif tts_type == "EL":
+                    await asyncio.get_event_loop().run_in_executor(None, EL_TTS, message)
+                elif tts_type == "pyttsx3":
+                    await asyncio.get_event_loop().run_in_executor(None, pyttsx3_TTS, message)
+                elif tts_type == "Google":
+                    await asyncio.get_event_loop().run_in_executor(None, google_TTS, message)
+            except Exception as e:
+                print(f"TTS Error: {str(e)}")
+                # Don't fallback to pyttsx3 automatically
+
+async def fish_tts_stream(text):
+    """Stream text to speech using Fish Audio SDK"""
+    try:
+        async_websocket = AsyncWebSocketSession(FISH_key)
+        voice_id = data["FISH_data"][0]["voice_id"]
+        
+        tts_request = TTSRequest(
+            text=text,
+            reference_id=voice_id,
+            format=data["FISH_data"][0]["settings"]["format"],
+            latency=data["FISH_data"][0]["settings"]["latency"]
+        )
+        
+        temp_file = "temp_audio.mp3"
+        
+        try:
+            async with async_websocket as ws:
+                with open(temp_file, "wb") as f:  # Open in write mode first
+                    async for chunk in ws.tts(tts_request):
+                        f.write(chunk)
+            
+            if is_installed("mpv"):
+                subprocess.run(["mpv", "--no-terminal", temp_file], 
+                             stdout=subprocess.DEVNULL, 
+                             stderr=subprocess.DEVNULL)
+            else:
+                print("Warning: mpv not found. Install from https://mpv.io/installation/")
+        finally:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+                
+    except Exception as e:
+        print(f"Fish TTS Error: {str(e)}")
+        raise  # Let the caller handle fallback
+
+async def run_fish_tts(message):
+    """Async wrapper for Fish TTS"""
+    try:
+        await fish_tts_stream(message)
+    except Exception as e:
+        print(f"Fish TTS Error: {str(e)}")
+        print("Falling back to pyttsx3...")
+        pyttsx3_TTS(message)
+
+def fish_TTS(message):
+    """Fish TTS handler"""
+    try:
+        # Use asyncio.run instead of manually managing event loop
+        asyncio.run(run_fish_tts(message))
+    except RuntimeError as e:
+        if "Event loop is closed" in str(e):
+            # If event loop is closed, create a new one
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(run_fish_tts(message))
+            loop.close()
+        else:
+            raise
 
 if __name__ == "__main__":
     print("\n\nRunning!\n\n")

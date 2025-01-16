@@ -3,12 +3,45 @@ const path = require('path');
 const { spawn } = require('child_process');
 const Store = require('electron-store');
 const fs = require('fs').promises;
+const { OAuth2Client } = require('google-auth-library');
+const { AuthorizationCode } = require('simple-oauth2');
+const express = require('express');
+const http = require('http');
 
-const store = new Store();
+// Configure electron-store
+Store.initRenderer();
+
+const store = new Store({
+    name: 'config',
+    fileExtension: 'json',
+    clearInvalidConfig: true,
+    defaults: {
+        // Your default config here
+    }
+});
+
 let mainWindow;
 let pythonProcess = null;
+let oauthWindow = null;
 
 const isDev = process.argv.includes('--dev');
+
+// OAuth configurations
+const OAUTH_CONFIG = {
+    youtube: {
+        clientId: 'YOUR_YOUTUBE_CLIENT_ID',
+        redirectUri: 'http://localhost:3000/oauth/youtube/callback',
+        scope: [
+            'https://www.googleapis.com/auth/youtube.readonly',
+            'https://www.googleapis.com/auth/youtube.force-ssl'
+        ].join(' ')
+    },
+    twitch: {
+        clientId: 'fplt5252qggml0gepl2x3z7ljnpp2r',
+        redirectUri: 'http://localhost:3000/oauth/twitch/callback',
+        scope: 'channel:read:stream_key chat:read chat:edit'
+    }
+};
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -22,18 +55,30 @@ function createWindow() {
             preload: path.join(__dirname, 'preload.js')
         },
         frame: false,
-        backgroundColor: '#1a1a1a'
+        backgroundColor: '#1a1a1a',
+        show: false
     });
 
     mainWindow.loadFile('src/index.html');
 
+    mainWindow.once('ready-to-show', () => {
+        mainWindow.show();
+    });
+
     if (isDev) {
         mainWindow.webContents.openDevTools();
-        // Enable live reload in dev mode
         mainWindow.webContents.on('did-finish-load', () => {
             mainWindow.webContents.send('dev-mode', true);
         });
     }
+
+    mainWindow.on('maximize', () => {
+        mainWindow.webContents.send('window-state-change', 'maximized');
+    });
+
+    mainWindow.on('unmaximize', () => {
+        mainWindow.webContents.send('window-state-change', 'normal');
+    });
 }
 
 app.whenReady().then(async () => {
@@ -210,6 +255,7 @@ ipcMain.handle('save-settings', async (event, settings) => {
 // Python process management
 ipcMain.handle('start-process', async (event, args) => {
     if (pythonProcess) {
+        console.error('Process already running');
         throw new Error('Process already running');
     }
 
@@ -217,40 +263,16 @@ ipcMain.handle('start-process', async (event, args) => {
     const pythonCmd = store.get('pythonCommand', 'py -3.11');
     const [cmd, ...cmdArgs] = pythonCmd.split(' ');
 
+    console.log('Starting process with command:', pythonCmd);
+    console.log('Arguments:', args);
+
     try {
-        // Install dependencies first
-        await new Promise((resolve, reject) => {
-            const installProcess = spawn(cmd, [
-                ...cmdArgs,
-                '-m', 'pip', 'install', '-r', 'requirements.txt'
-            ], {
-                cwd: __dirname,
-                shell: true
-            });
-
-            // Forward installation logs
-            installProcess.stdout.on('data', (data) => {
-                mainWindow.webContents.send('process-output', `[pip] ${data.toString()}`);
-            });
-
-            installProcess.stderr.on('data', (data) => {
-                mainWindow.webContents.send('process-error', `[pip] ${data.toString()}`);
-            });
-
-            installProcess.on('close', (code) => {
-                if (code === 0) {
-                    resolve();
-                } else {
-                    reject(new Error(`Dependencies installation failed with code ${code}`));
-                }
-            });
-        });
-
-        // Start the actual process
+        // Start the Python process directly (no dependency installation)
         pythonProcess = spawn(cmd, [
             ...cmdArgs,
             'run.py',
-            '--video_id', args.videoId,
+            '--platform', args.platform,
+            '--stream_id', args.streamId,
             '--tts_type', args.ttsType,
             '--ai_provider', args.aiProvider
         ], {
@@ -277,9 +299,9 @@ ipcMain.handle('start-process', async (event, args) => {
         });
 
         pythonProcess.on('exit', (code, signal) => {
+            const message = `Process exited with code ${code}${signal ? ` (signal: ${signal})` : ''}`;
+            console.log('[Process Exit]', message);
             if (code !== 0) {
-                const message = `Process exited with code ${code}${signal ? ` (signal: ${signal})` : ''}`;
-                console.error('[Process Exit]', message);
                 mainWindow.webContents.send('process-error', message);
             }
             pythonProcess = null;
@@ -334,42 +356,40 @@ ipcMain.handle('open-external', (event, url) => {
 
 // Add this with your other IPC handlers
 ipcMain.handle('installDependencies', async () => {
-    try {
-        const store = new Store();
-        const pythonCmd = store.get('pythonCommand', 'py -3.11');
-        const [cmd, ...cmdArgs] = pythonCmd.split(' ');
-        
-        const result = await new Promise((resolve, reject) => {
-            const childProcess = spawn(cmd, [
-                ...cmdArgs,
-                '-m', 'pip', 'install', '-r', 'requirements.txt'
-            ], {
-                cwd: __dirname,
-                shell: true
-            });
+    const store = new Store();
+    const pythonCmd = store.get('pythonCommand', 'py -3.11');
+    const [cmd, ...cmdArgs] = pythonCmd.split(' ');
 
-            let output = '';
-            childProcess.stdout.on('data', (data) => {
-                output += data.toString();
-            });
-            childProcess.stderr.on('data', (data) => {
-                output += data.toString();
-            });
-
-            childProcess.on('close', (code) => {
-                if (code === 0) {
-                    resolve(output);
-                } else {
-                    reject(new Error(`Process exited with code ${code}\n${output}`));
-                }
-            });
+    console.log('Installing dependencies...');
+    
+    return new Promise((resolve, reject) => {
+        const installProcess = spawn(cmd, [
+            ...cmdArgs,
+            '-m', 'pip', 'install', '-r', 'requirements.txt'
+        ], {
+            cwd: __dirname,
+            shell: true
         });
-        
-        return true;
-    } catch (error) {
-        console.error('Failed to install dependencies:', error);
-        throw error;
-    }
+
+        installProcess.stdout.on('data', (data) => {
+            console.log('[pip]', data.toString());
+        });
+
+        installProcess.stderr.on('data', (data) => {
+            console.error('[pip error]', data.toString());
+        });
+
+        installProcess.on('close', (code) => {
+            if (code === 0) {
+                console.log('Dependencies installed successfully');
+                resolve();
+            } else {
+                const error = `Dependencies installation failed with code ${code}`;
+                console.error(error);
+                reject(new Error(error));
+            }
+        });
+    });
 });
 
 // Add this new IPC handler
@@ -423,4 +443,231 @@ ipcMain.handle('checkPythonVersions', async () => {
     }
     
     return versions;
+});
+
+ipcMain.handle('is-maximized', () => {
+    return mainWindow.isMaximized();
+});
+
+// OAuth server setup
+function setupOAuthServer() {
+    const port = 3000;
+    
+    app.get('/oauth/:platform/callback', async (req, res) => {
+        const { platform } = req.params;
+        const { code } = req.query;
+        
+        try {
+            let tokens;
+            if (platform === 'youtube') {
+                tokens = await handleYouTubeCallback(code);
+            } else {
+                tokens = await handleTwitchCallback(code);
+            }
+            
+            // Store tokens securely
+            await store.set(`${platform}_tokens`, tokens);
+            
+            // Update UI
+            mainWindow.webContents.send('oauth-update', {
+                platform,
+                status: 'connected',
+                username: await getUserInfo(platform, tokens)
+            });
+            
+            // Close OAuth window
+            if (oauthWindow) {
+                oauthWindow.close();
+                oauthWindow = null;
+            }
+            
+            res.send('<script>window.close();</script>');
+        } catch (error) {
+            console.error('OAuth error:', error);
+            res.status(500).send('Authentication failed');
+        }
+    });
+    
+    server.listen(port, () => {
+        console.log(`OAuth server listening on port ${port}`);
+    });
+}
+
+// Add OAuth handlers
+ipcMain.handle('startOAuth', async (event, platform) => {
+    console.log(`OAuth request received for ${platform}`);
+    const config = OAUTH_CONFIG[platform];
+    let authUrl;
+    
+    try {
+        if (platform === 'youtube') {
+            authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+                `client_id=${config.clientId}&` +
+                `redirect_uri=${encodeURIComponent(config.redirectUri)}&` +
+                `response_type=token&` +
+                `scope=${encodeURIComponent(config.scope)}`;
+        } else {
+            authUrl = `https://id.twitch.tv/oauth2/authorize?` +
+                `client_id=${config.clientId}&` +
+                `redirect_uri=${encodeURIComponent(config.redirectUri)}&` +
+                `response_type=token&` +
+                `scope=${encodeURIComponent(config.scope)}`;
+        }
+        
+        console.log(`Opening OAuth URL for ${platform}:`, authUrl);
+        
+        // Create OAuth window
+        oauthWindow = new BrowserWindow({
+            width: 800,
+            height: 600,
+            parent: mainWindow,
+            modal: true,
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true
+            }
+        });
+        
+        // Handle the redirect and extract token from URL
+        oauthWindow.webContents.on('will-navigate', handleOAuthRedirect);
+        oauthWindow.webContents.on('will-redirect', handleOAuthRedirect);
+        
+        await oauthWindow.loadURL(authUrl);
+        console.log(`OAuth window opened for ${platform}`);
+        return true;
+    } catch (error) {
+        console.error(`OAuth error for ${platform}:`, error);
+        if (oauthWindow) {
+            oauthWindow.close();
+            oauthWindow = null;
+        }
+        throw error;
+    }
+});
+
+// Handle OAuth redirects
+async function handleOAuthRedirect(event, url) {
+    try {
+        const urlObj = new URL(url);
+        
+        if (url.startsWith('http://localhost:3000/oauth')) {
+            const platform = url.includes('youtube') ? 'youtube' : 'twitch';
+            const params = new URLSearchParams(urlObj.hash.slice(1) || urlObj.search);
+            const accessToken = params.get('access_token');
+            
+            if (accessToken) {
+                // Store the credentials in electron-store
+                await store.set(`${platform}_credentials`, {
+                    access_token: accessToken,
+                    timestamp: Date.now()
+                });
+                
+                // Also save to a local file that Python can easily access
+                const credentials = {
+                    access_token: accessToken,
+                    timestamp: Date.now()
+                };
+                
+                await fs.writeFile('electron-store.json', JSON.stringify({
+                    twitch_credentials: credentials
+                }, null, 2));
+                
+                const userInfo = await getUserInfo(platform, { access_token: accessToken });
+                await store.set(`${platform}_username`, userInfo.username);
+                
+                mainWindow.webContents.send('oauth-update', {
+                    platform,
+                    status: 'connected',
+                    username: userInfo.username
+                });
+                
+                if (oauthWindow) {
+                    oauthWindow.close();
+                    oauthWindow = null;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('OAuth redirect error:', error);
+        mainWindow.webContents.send('oauth-update', {
+            platform: 'unknown',
+            status: 'error',
+            error: error.message
+        });
+    }
+}
+
+// Update user info fetching
+async function getUserInfo(platform, tokens) {
+    try {
+        if (platform === 'youtube') {
+            const response = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true', {
+                headers: {
+                    Authorization: `Bearer ${tokens.access_token}`
+                }
+            });
+            const data = await response.json();
+            
+            // Store the credentials
+            const settings = await store.get('settings', {});
+            settings.keys = settings.keys || [{}];
+            settings.keys[0] = {
+                ...settings.keys[0],
+                youtube_api_key: tokens.access_token
+            };
+            await store.set('settings', settings);
+            
+            return {
+                username: data.items[0].snippet.title,
+                channelId: data.items[0].id
+            };
+        } else {
+            const response = await fetch('https://api.twitch.tv/helix/users', {
+                headers: {
+                    'Client-ID': OAUTH_CONFIG.twitch.clientId,
+                    'Authorization': `Bearer ${tokens.access_token}`
+                }
+            });
+            const data = await response.json();
+            
+            // Only store username, token is already stored in electron-store
+            return {
+                username: data.data[0].display_name,
+                userId: data.data[0].id
+            };
+        }
+    } catch (error) {
+        console.error('Error fetching user info:', error);
+        throw error;
+    }
+}
+
+// Add a method to check OAuth status
+ipcMain.handle('getOAuthStatus', async (event, platform) => {
+    try {
+        const credentials = await store.get(`${platform}_credentials`);
+        const username = await store.get(`${platform}_username`);
+        
+        if (credentials && username) {
+            return {
+                status: 'connected',
+                username,
+                access_token: credentials.access_token
+            };
+        }
+        return null;
+    } catch (error) {
+        console.error(`Failed to get ${platform} OAuth status:`, error);
+        return null;
+    }
+});
+
+// Add a new handler to get stored credentials
+ipcMain.handle('getStoredCredentials', async (event, platform) => {
+    try {
+        return await store.get(`${platform}_credentials`);
+    } catch (error) {
+        console.error(`Failed to get ${platform} credentials:`, error);
+        return null;
+    }
 }); 

@@ -1,5 +1,6 @@
 import { NotificationManager } from '../utils/notifications.js';
 import { SetupWizard } from '../utils/setup-wizard.js';
+import { logger } from '../utils/logger.js';
 
 // Create a notification manager instance at the module level
 const notifications = new NotificationManager();
@@ -42,6 +43,24 @@ export function initializeSettings() {
                         <input type="password" id="fish-key" class="api-key">
                         <button class="toggle-visibility">👁</button>
                     </div>
+                </div>
+                <div class="form-group">
+                    <label>Platform Authentication</label>
+                    <div class="oauth-section">
+                        <button id="youtube-auth" class="oauth-button" data-platform="youtube">
+                            <span class="icon">🎥</span>
+                            Connect YouTube
+                        </button>
+                        <span id="youtube-status" class="oauth-status">Not Connected</span>
+                    </div>
+                    <div class="oauth-section">
+                        <button id="twitch-auth" class="oauth-button" data-platform="twitch">
+                            <span class="icon">📺</span>
+                            Connect Twitch
+                        </button>
+                        <span id="twitch-status" class="oauth-status">Not Connected</span>
+                    </div>
+                    <p class="oauth-help">Connect your accounts to automatically configure API access</p>
                 </div>
             </div>
             
@@ -116,6 +135,11 @@ export function initializeSettings() {
     });
 
     document.getElementById('save-settings').addEventListener('click', saveSettings);
+
+    // Initialize OAuth handlers
+    initializeOAuth();
+
+    // Load initial settings
     loadSettings();
 
     // Add event listeners for new buttons
@@ -143,29 +167,68 @@ export function initializeSettings() {
     async function loadSettings() {
         try {
             const settings = await window.api.loadSettings();
-            const pythonCommand = await window.api.store.get('pythonCommand', 'py -3.11');
             
+            // Ensure settings object has the required structure
+            const defaultSettings = {
+                keys: [{
+                    EL_key: '',
+                    FISH_key: '',
+                    OPENAI_key: '',
+                    GEMINI_key: ''
+                }],
+                EL_data: [{
+                    voice: ''
+                }],
+                FISH_data: [{
+                    voice_id: '',
+                    settings: {
+                        format: 'mp3',
+                        mp3_bitrate: 128,
+                        latency: 'normal'
+                    }
+                }]
+            };
+
+            // Merge default settings with loaded settings
+            const mergedSettings = {
+                ...defaultSettings,
+                ...settings,
+                keys: [{ ...defaultSettings.keys[0], ...(settings?.keys?.[0] || {}) }],
+                EL_data: [{ ...defaultSettings.EL_data[0], ...(settings?.EL_data?.[0] || {}) }],
+                FISH_data: [{
+                    ...defaultSettings.FISH_data[0],
+                    ...(settings?.FISH_data?.[0] || {}),
+                    settings: {
+                        ...defaultSettings.FISH_data[0].settings,
+                        ...(settings?.FISH_data?.[0]?.settings || {})
+                    }
+                }]
+            };
+
             // Update Python command display
+            const pythonCommand = await window.api.store.get('pythonCommand', 'py -3.11');
             document.getElementById('python-command').value = pythonCommand;
             
             // API Keys
-            document.getElementById('el-key').value = settings.keys[0].EL_key || '';
-            document.getElementById('fish-key').value = settings.keys[0].FISH_key || '';
-            document.getElementById('openai-key').value = settings.keys[0].OPENAI_key || '';
-            document.getElementById('gemini-key').value = settings.keys[0].GEMINI_key || '';
+            document.getElementById('el-key').value = mergedSettings.keys[0].EL_key || '';
+            document.getElementById('fish-key').value = mergedSettings.keys[0].FISH_key || '';
+            document.getElementById('openai-key').value = mergedSettings.keys[0].OPENAI_key || '';
+            document.getElementById('gemini-key').value = mergedSettings.keys[0].GEMINI_key || '';
             
             // Voice Settings
-            document.getElementById('el-voice').value = settings.EL_data[0].voice || '';
-            document.getElementById('fish-voice').value = settings.FISH_data[0].voice_id || '';
+            document.getElementById('el-voice').value = mergedSettings.EL_data[0].voice || '';
+            document.getElementById('fish-voice').value = mergedSettings.FISH_data[0].voice_id || '';
             
             // Fish Settings
-            if (settings.FISH_data[0].settings) {
-                document.getElementById('fish-format').value = settings.FISH_data[0].settings.format || 'mp3';
-                document.getElementById('fish-mp3-bitrate').value = settings.FISH_data[0].settings.mp3_bitrate || '128';
-                document.getElementById('fish-latency').value = settings.FISH_data[0].settings.latency || 'normal';
+            if (mergedSettings.FISH_data[0].settings) {
+                document.getElementById('fish-format').value = mergedSettings.FISH_data[0].settings.format || 'mp3';
+                document.getElementById('fish-mp3-bitrate').value = mergedSettings.FISH_data[0].settings.mp3_bitrate || '128';
+                document.getElementById('fish-latency').value = mergedSettings.FISH_data[0].settings.latency || 'normal';
             }
+            
+            logger.info('Settings loaded successfully');
         } catch (error) {
-            console.error('Failed to load settings:', error);
+            logger.error('Failed to load settings:', error);
             notifications.show('Failed to load settings', 'error');
         }
     }
@@ -215,8 +278,52 @@ async function saveSettings() {
         };
         
         await window.api.saveSettings(settings);
-        alert('Settings saved successfully!');
+        notifications.show('Settings saved successfully!', 'success');
     } catch (error) {
-        alert('Failed to save settings: ' + error.message);
+        notifications.show('Failed to save settings: ' + error.message, 'error');
     }
+}
+
+// Update the OAuth initialization
+function initializeOAuth() {
+    const authButtons = document.querySelectorAll('.oauth-button');
+    
+    authButtons.forEach(button => {
+        button.addEventListener('click', async () => {
+            const platform = button.dataset.platform;
+            try {
+                logger.info(`Attempting to connect to ${platform}`);
+                button.classList.add('loading');
+                button.disabled = true;
+                
+                const result = await window.api.startOAuth(platform);
+                logger.info(`OAuth result for ${platform}:`, result);
+            } catch (error) {
+                logger.error(`Failed to connect to ${platform}:`, error);
+                notifications.show(`Failed to connect ${platform}: ${error.message}`, 'error');
+            } finally {
+                button.classList.remove('loading');
+                button.disabled = false;
+            }
+        });
+    });
+
+    // Listen for OAuth status updates
+    window.api.onOAuthUpdate((event, data) => {
+        logger.info('OAuth status update:', data);
+        const { platform, status, username } = data;
+        const statusEl = document.getElementById(`${platform}-status`);
+        const button = document.querySelector(`.oauth-button[data-platform="${platform}"]`);
+        
+        if (status === 'connected') {
+            statusEl.textContent = `Connected as ${username}`;
+            statusEl.classList.add('connected');
+            button.textContent = 'Reconnect';
+            notifications.show(`Successfully connected to ${platform}!`, 'success');
+        } else {
+            statusEl.textContent = 'Not Connected';
+            statusEl.classList.remove('connected');
+            button.textContent = `Connect ${platform}`;
+        }
+    });
 } 

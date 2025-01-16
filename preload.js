@@ -33,5 +33,20 @@ contextBridge.exposeInMainWorld('api', {
     testPythonCommand: (cmd) => ipcRenderer.invoke('test-python-command', cmd),
     openExternal: (url) => ipcRenderer.invoke('open-external', url),
     installDependencies: () => ipcRenderer.invoke('installDependencies'),
-    checkPythonVersions: () => ipcRenderer.invoke('checkPythonVersions')
+    checkPythonVersions: () => ipcRenderer.invoke('checkPythonVersions'),
+
+    // OAuth methods
+    startOAuth: (platform) => {
+        console.log(`Initiating OAuth for ${platform}`);
+        return ipcRenderer.invoke('startOAuth', platform);
+    },
+    onOAuthUpdate: (callback) => {
+        console.log('Registering OAuth update handler');
+        return ipcRenderer.on('oauth-update', callback);
+    },
+    getOAuthStatus: (platform) => ipcRenderer.invoke('getOAuthStatus', platform),
+    revokeOAuth: (platform) => ipcRenderer.invoke('revokeOAuth', platform),
+
+    // Add this new method
+    getStoredCredentials: (platform) => ipcRenderer.invoke('getStoredCredentials', platform),
 }); 
